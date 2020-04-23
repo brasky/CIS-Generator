@@ -70,7 +70,7 @@ def get_customer_responsibility_text(control_text):
         cust_resp = ''
         split_text = control_text.split('\n')
         for text_part in split_text:
-            if text_part == 'Customer Responsibility:':
+            if 'Customer Responsibility:' in text_part:
                 continue
             if ':' in text_part and "Part" in text_part and "http" not in text_part:
                 return cust_resp
@@ -154,6 +154,11 @@ def main(docs, cis_workbook, out_file):
     else:
         crm_addendum_list = None
     
+    cis_controls = [convert_cis_control_number(cis_worksheet.cell(row=x, column = 2).value) for x in range(4, 424)]
+    for control in [control for control in security_plan if control.number not in cis_controls]:
+        new_row = [''] * 15
+        new_row[1] = control.number
+        cis_worksheet.append(new_row)
     fill_cis_worksheet(cis_control_dict, cis_worksheet)
     fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list)
     if addendum:
