@@ -140,8 +140,8 @@ def append_addendum_controls_to_cis(control_list, cis_worksheet):
 #     for control in control_list:
 
 def main(docs, cis_workbook, out_file):
-    cis_worksheet = cis_workbook['CIS']
-    crm_worksheet = cis_workbook['Customer Responsibility Matrix']
+    cis_worksheet = cis_workbook['CIS Worksheet']
+    crm_worksheet = cis_workbook['CRM Worksheet']
     security_plan, addendum = docs
     crm_control_list = []
     cis_control_dict = {}
