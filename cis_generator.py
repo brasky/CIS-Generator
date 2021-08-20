@@ -1,4 +1,5 @@
 import argparse
+from pdb import set_trace
 from ssp import SSP
 from openpyxl import load_workbook
 
@@ -86,8 +87,8 @@ def get_customer_responsibility_text(control_text):
 
 def fill_cis_worksheet(cis_dict, worksheet):
     for row in worksheet.rows:
-        if row[0].row > 3 and row[1].value is not None:
-            control = row[1].value
+        if row[0].row > 3 and row[0].value is not None:
+            control = row[0].value
             control = convert_cis_control_number(control)
             try:
                 control_object = cis_dict[control]
@@ -154,11 +155,12 @@ def main(docs, cis_workbook, out_file):
     else:
         crm_addendum_list = None
     
-    cis_controls = [convert_cis_control_number(cis_worksheet.cell(row=x, column = 2).value) for x in range(4, 424)]
+    cis_controls = [convert_cis_control_number(cis_worksheet.cell(row=x, column = 1).value) for x in range(4, 424)]
     for control in [control for control in security_plan if control.number not in cis_controls]:
         new_row = [''] * 15
         new_row[1] = control.number
         cis_worksheet.append(new_row)
+    set_trace()
     fill_cis_worksheet(cis_control_dict, cis_worksheet)
     fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list)
     if addendum:
@@ -170,9 +172,10 @@ def fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list):
     row_counter = 4
     ref_counter = 1
     for control in crm_control_list:
-        crm_worksheet.cell(row_counter, 1).value = ref_counter
-        crm_worksheet.cell(row_counter, 2).value = control.text
-        crm_worksheet.cell(row_counter, 3).value = control.number
+        #crm_worksheet.cell(row_counter, 1).value = ref_counter
+        crm_worksheet.cell(row_counter, 1).value = control.number
+        crm_worksheet.cell(row_counter, 2).value = 'Yes'
+        crm_worksheet.cell(row_counter, 3).value = control.text
         row_counter += 1
         ref_counter += 1
     if crm_addendum_list:
