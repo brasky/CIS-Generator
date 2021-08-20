@@ -1,4 +1,5 @@
 import argparse
+from pdb import set_trace
 from ssp import SSP
 from openpyxl import load_workbook
 
@@ -86,8 +87,8 @@ def get_customer_responsibility_text(control_text):
 
 def fill_cis_worksheet(cis_dict, worksheet):
     for row in worksheet.rows:
-        if row[0].row > 3 and row[1].value is not None:
-            control = row[1].value
+        if row[0].row > 3 and row[0].value is not None:
+            control = row[0].value
             control = convert_cis_control_number(control)
             try:
                 control_object = cis_dict[control]
@@ -140,8 +141,8 @@ def append_addendum_controls_to_cis(control_list, cis_worksheet):
 #     for control in control_list:
 
 def main(docs, cis_workbook, out_file):
-    cis_worksheet = cis_workbook['CIS']
-    crm_worksheet = cis_workbook['Customer Responsibility Matrix']
+    cis_worksheet = cis_workbook['CIS Worksheet']
+    crm_worksheet = cis_workbook['CRM Worksheet']
     security_plan, addendum = docs
     crm_control_list = []
     cis_control_dict = {}
@@ -154,7 +155,7 @@ def main(docs, cis_workbook, out_file):
     else:
         crm_addendum_list = None
     
-    cis_controls = [convert_cis_control_number(cis_worksheet.cell(row=x, column = 2).value) for x in range(4, 424)]
+    cis_controls = [convert_cis_control_number(cis_worksheet.cell(row=x, column = 1).value) for x in range(4, 424)]
     for control in [control for control in security_plan if control.number not in cis_controls]:
         new_row = [''] * 15
         new_row[1] = control.number
@@ -170,9 +171,10 @@ def fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list):
     row_counter = 4
     ref_counter = 1
     for control in crm_control_list:
-        crm_worksheet.cell(row_counter, 1).value = ref_counter
-        crm_worksheet.cell(row_counter, 2).value = control.text
-        crm_worksheet.cell(row_counter, 3).value = control.number
+        #crm_worksheet.cell(row_counter, 1).value = ref_counter
+        crm_worksheet.cell(row_counter, 1).value = control.number
+        crm_worksheet.cell(row_counter, 2).value = 'Yes'
+        crm_worksheet.cell(row_counter, 3).value = control.text
         row_counter += 1
         ref_counter += 1
     if crm_addendum_list:
@@ -185,7 +187,7 @@ def fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list):
 
 
 def convert_cis_control_number(control_number):
-    control_number = control_number.replace('-0', '-').replace('(0', '(')
+    control_number = control_number.replace('-0', '-').replace('(0', '(').split(' ', 1)[0]
     return control_number
 
 
