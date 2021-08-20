@@ -187,7 +187,7 @@ def fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list):
 
 
 def convert_cis_control_number(control_number):
-    control_number = control_number.replace('-0', '-').replace('(0', '(')
+    control_number = control_number.replace('-0', '-').replace('(0', '(').split(' ', 1)[0]
     return control_number
 
 
