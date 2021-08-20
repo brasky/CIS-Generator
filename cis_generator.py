@@ -160,7 +160,6 @@ def main(docs, cis_workbook, out_file):
         new_row = [''] * 15
         new_row[1] = control.number
         cis_worksheet.append(new_row)
-    set_trace()
     fill_cis_worksheet(cis_control_dict, cis_worksheet)
     fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list)
     if addendum:
