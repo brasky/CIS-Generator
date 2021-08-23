@@ -1,4 +1,4 @@
-import argparse, pdb, re
+import argparse, re
 from string import ascii_letters
 from ssp import SSP
 from openpyxl import load_workbook
