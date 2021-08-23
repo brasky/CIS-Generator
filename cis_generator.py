@@ -1,4 +1,5 @@
-import argparse
+import argparse, pdb, re
+from string import ascii_letters
 from ssp import SSP
 from openpyxl import load_workbook
 
@@ -82,21 +83,32 @@ def get_customer_responsibility_text(control_text):
     else:
         return None
 
+def get_max_row(worksheet):
+    row = 4
+    value = worksheet.cell(row, 1).value
+    while value is not None:
+        row+=1
+        value = worksheet.cell(row, 1).value
+    return row
 
 
 def fill_cis_worksheet(cis_dict, worksheet):
-    for row in worksheet.rows:
-        if row[0].row > 3 and row[0].value is not None:
-            control = row[0].value
-            control = convert_cis_control_number(control)
-            try:
-                control_object = cis_dict[control]
-            except KeyError:
-                print('Could not find entry for control ' + control)
-                continue
-            columns = control_object.get_columns()
-            for column in columns:
-                row[column].value = 'X'
+    rownumber = 4
+    max_row = get_max_row(worksheet)
+    while rownumber < max_row:
+        row = worksheet[rownumber]
+        control = row[0].value
+        control = convert_cis_control_number(control)
+        try:
+            control_object = cis_dict[control]
+        except KeyError:
+            print('Could not find entry for control ' + control)
+            rownumber += 1
+            continue
+        columns = control_object.get_columns()
+        for column in columns:
+            row[column].value = 'X'
+        rownumber += 1
 
 def create_addendum_controls(addendum):
     crm_addendum_list = []
@@ -154,7 +166,7 @@ def main(docs, cis_workbook, out_file):
     else:
         crm_addendum_list = None
     
-    cis_controls = [convert_cis_control_number(cis_worksheet.cell(row=x, column = 1).value) for x in range(4, 424)]
+    cis_controls = [convert_cis_control_number(cis_worksheet.cell(row=x, column = 1).value) for x in range(4, get_max_row(cis_worksheet))]
     for control in [control for control in security_plan if control.number not in cis_controls]:
         new_row = [''] * 15
         new_row[1] = control.number
@@ -167,22 +179,29 @@ def main(docs, cis_workbook, out_file):
     cis_workbook.save(out_file)
 
 def fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list):
-    row_counter = 4
-    ref_counter = 1
+    crm_worksheet_dict = {}
+    for row in range(4, get_max_row(crm_worksheet)):
+        cisnumber = crm_worksheet.cell(row, 1).value
+        if cisnumber is None:
+            continue
+        if any(ascii in cisnumber for ascii in ascii_letters):
+            cisnumber = re.sub(r' (?=\([a-z]\))', '', cisnumber)
+        if '0' in cisnumber:
+            cisnumber = re.sub(r'0(?=[1-9])', '', cisnumber)
+        crm_worksheet_dict[cisnumber] = row
     for control in crm_control_list:
+        row_counter = crm_worksheet_dict[control.number]
         #crm_worksheet.cell(row_counter, 1).value = ref_counter
         crm_worksheet.cell(row_counter, 1).value = control.number
         crm_worksheet.cell(row_counter, 2).value = 'Yes'
         crm_worksheet.cell(row_counter, 3).value = control.text
-        row_counter += 1
-        ref_counter += 1
     if crm_addendum_list:
         for control in crm_addendum_list:
-            crm_worksheet.cell(row_counter, 1).value = ref_counter
-            crm_worksheet.cell(row_counter, 2).value = control.text
-            crm_worksheet.cell(row_counter, 3).value = control.number
-            row_counter += 1
-            ref_counter += 1
+            row_counter = crm_worksheet_dict[control.number]
+            #crm_worksheet.cell(row_counter, 1).value = ref_counter
+            crm_worksheet.cell(row_counter, 1).value = control.number
+            crm_worksheet.cell(row_counter, 2).value = 'Yes'
+            crm_worksheet.cell(row_counter, 3).value = control.text
 
 
 def convert_cis_control_number(control_number):
