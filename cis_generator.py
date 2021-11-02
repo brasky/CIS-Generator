@@ -1,20 +1,20 @@
-import argparse, re
+import argparse, re, pdb
 from string import ascii_letters
 from ssp import SSP
 from openpyxl import load_workbook
 
 class CIS_Control:
 
-    implementation_columns = {'Implemented': 2, 'Partially Implemented': 3, 'Planned': 4, 'Alternative Implementation': 5, 'Not Applicable': 6}
+    implementation_columns = {'Implemented': 1, 'Partially Implemented': 2, 'Planned': 3, 'Alternative Implementation': 4, 'Not Applicable': 5}
     origination_columns = {
-        'Service Provider Corporate': 7,
-        'Service Provider System Specific': 8,
-        'Service Provider Hybrid': 9,
-        'Configured by Customer': 10,
-        'Provided by Customer': 11,
-        'Shared': 12,
-        'Inherited': 13,
-        'Not Applicable': 14
+        'Service Provider Corporate': 6,
+        'Service Provider System Specific': 7,
+        'Service Provider Hybrid': 8,
+        'Configured by Customer': 9,
+        'Provided by Customer': 10,
+        'Shared': 11,
+        'Inherited': 12,
+        'Not Applicable': 13
         }
 
     def __init__(self, control_object):
@@ -70,7 +70,11 @@ def get_customer_responsibility_text(control_text):
     if "Customer Responsibility" in control_text:
         cust_resp = ''
         split_text = control_text.split('\n')
-        for text_part in split_text:
+        try:
+            customer_index = split_text.index('Customer Responsibility:')
+        except ValueError:
+            customer_index = split_text.index('Customer Responsibility')
+        for text_part in split_text[customer_index:]:
             if 'Customer Responsibility:' in text_part:
                 continue
             if ':' in text_part and "Part" in text_part and "http" not in text_part:
@@ -182,6 +186,7 @@ def fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list):
     crm_worksheet_dict = {}
     for row in range(4, get_max_row(crm_worksheet)):
         cisnumber = crm_worksheet.cell(row, 1).value
+        crm_worksheet.cell(row=row, column=2).value = "Yes"
         if cisnumber is None:
             continue
         if any(ascii in cisnumber for ascii in ascii_letters):
@@ -193,7 +198,7 @@ def fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list):
         row_counter = crm_worksheet_dict[control.number]
         #crm_worksheet.cell(row_counter, 1).value = ref_counter
         crm_worksheet.cell(row_counter, 1).value = control.number
-        crm_worksheet.cell(row_counter, 2).value = 'Yes'
+        crm_worksheet.cell(row_counter, 2).value = 'No'
         crm_worksheet.cell(row_counter, 3).value = control.text
     if crm_addendum_list:
         for control in crm_addendum_list:
