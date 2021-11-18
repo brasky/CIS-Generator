@@ -70,12 +70,11 @@ def get_customer_responsibility_text(control_text):
     if "Customer Responsibility" in control_text:
         cust_resp = ''
         split_text = control_text.split('\n')
-        try:
-            customer_index = split_text.index('Customer Responsibility:')
-        except ValueError:
-            customer_index = split_text.index('Customer Responsibility')
+        for text in split_text:
+            if "Customer Resp" in text:
+                customer_index = split_text.index(text) 
         for text_part in split_text[customer_index:]:
-            if 'Customer Responsibility:' in text_part:
+            if 'Customer Responsibility' in text_part:
                 continue
             if ':' in text_part and "Part" in text_part and "http" not in text_part:
                 return cust_resp
