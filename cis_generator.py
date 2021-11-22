@@ -1,19 +1,20 @@
-import argparse
+import argparse, re, pdb
+from string import ascii_letters
 from ssp import SSP
 from openpyxl import load_workbook
 
 class CIS_Control:
 
-    implementation_columns = {'Implemented': 2, 'Partially Implemented': 3, 'Planned': 4, 'Alternative Implementation': 5, 'Not Applicable': 6}
+    implementation_columns = {'Implemented': 1, 'Partially Implemented': 2, 'Planned': 3, 'Alternative Implementation': 4, 'Not Applicable': 5}
     origination_columns = {
-        'Service Provider Corporate': 7,
-        'Service Provider System Specific': 8,
-        'Service Provider Hybrid': 9,
-        'Configured by Customer': 10,
-        'Provided by Customer': 11,
-        'Shared': 12,
-        'Inherited': 13,
-        'Not Applicable': 14
+        'Service Provider Corporate': 6,
+        'Service Provider System Specific': 7,
+        'Service Provider Hybrid': 8,
+        'Configured by Customer': 9,
+        'Provided by Customer': 10,
+        'Shared': 11,
+        'Inherited': 12,
+        'Not Applicable': 13
         }
 
     def __init__(self, control_object):
@@ -69,8 +70,11 @@ def get_customer_responsibility_text(control_text):
     if "Customer Responsibility" in control_text:
         cust_resp = ''
         split_text = control_text.split('\n')
-        for text_part in split_text:
-            if text_part == 'Customer Responsibility:':
+        for text in split_text:
+            if "Customer Resp" in text:
+                customer_index = split_text.index(text) 
+        for text_part in split_text[customer_index:]:
+            if 'Customer Responsibility' in text_part:
                 continue
             if ':' in text_part and "Part" in text_part and "http" not in text_part:
                 return cust_resp
@@ -82,21 +86,32 @@ def get_customer_responsibility_text(control_text):
     else:
         return None
 
+def get_max_row(worksheet):
+    row = 4
+    value = worksheet.cell(row, 1).value
+    while value is not None:
+        row+=1
+        value = worksheet.cell(row, 1).value
+    return row
 
 
 def fill_cis_worksheet(cis_dict, worksheet):
-    for row in worksheet.rows:
-        if row[0].row > 3 and row[1].value is not None:
-            control = row[1].value
-            control = convert_cis_control_number(control)
-            try:
-                control_object = cis_dict[control]
-            except KeyError:
-                print('Could not find entry for control ' + control)
-                continue
-            columns = control_object.get_columns()
-            for column in columns:
-                row[column].value = 'X'
+    rownumber = 4
+    max_row = get_max_row(worksheet)
+    while rownumber < max_row:
+        row = worksheet[rownumber]
+        control = row[0].value
+        control = convert_cis_control_number(control)
+        try:
+            control_object = cis_dict[control]
+        except KeyError:
+            print('Could not find entry for control ' + control)
+            rownumber += 1
+            continue
+        columns = control_object.get_columns()
+        for column in columns:
+            row[column].value = 'X'
+        rownumber += 1
 
 def create_addendum_controls(addendum):
     crm_addendum_list = []
@@ -140,8 +155,8 @@ def append_addendum_controls_to_cis(control_list, cis_worksheet):
 #     for control in control_list:
 
 def main(docs, cis_workbook, out_file):
-    cis_worksheet = cis_workbook['CIS']
-    crm_worksheet = cis_workbook['Customer Responsibility Matrix']
+    cis_worksheet = cis_workbook['CIS Worksheet']
+    crm_worksheet = cis_workbook['CRM Worksheet']
     security_plan, addendum = docs
     crm_control_list = []
     cis_control_dict = {}
@@ -154,6 +169,11 @@ def main(docs, cis_workbook, out_file):
     else:
         crm_addendum_list = None
     
+    cis_controls = [convert_cis_control_number(cis_worksheet.cell(row=x, column = 1).value) for x in range(4, get_max_row(cis_worksheet))]
+    for control in [control for control in security_plan if control.number not in cis_controls]:
+        new_row = [''] * 15
+        new_row[1] = control.number
+        cis_worksheet.append(new_row)
     fill_cis_worksheet(cis_control_dict, cis_worksheet)
     fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list)
     if addendum:
@@ -162,25 +182,34 @@ def main(docs, cis_workbook, out_file):
     cis_workbook.save(out_file)
 
 def fill_crm_worksheet(crm_control_list, crm_worksheet, crm_addendum_list):
-    row_counter = 4
-    ref_counter = 1
+    crm_worksheet_dict = {}
+    for row in range(4, get_max_row(crm_worksheet)):
+        cisnumber = crm_worksheet.cell(row, 1).value
+        crm_worksheet.cell(row=row, column=2).value = "Yes"
+        if cisnumber is None:
+            continue
+        if any(ascii in cisnumber for ascii in ascii_letters):
+            cisnumber = re.sub(r' (?=\([a-z]\))', '', cisnumber)
+        if '0' in cisnumber:
+            cisnumber = re.sub(r'0(?=[1-9])', '', cisnumber)
+        crm_worksheet_dict[cisnumber] = row
     for control in crm_control_list:
-        crm_worksheet.cell(row_counter, 1).value = ref_counter
-        crm_worksheet.cell(row_counter, 2).value = control.text
-        crm_worksheet.cell(row_counter, 3).value = control.number
-        row_counter += 1
-        ref_counter += 1
+        row_counter = crm_worksheet_dict[control.number]
+        #crm_worksheet.cell(row_counter, 1).value = ref_counter
+        crm_worksheet.cell(row_counter, 1).value = control.number
+        crm_worksheet.cell(row_counter, 2).value = 'No'
+        crm_worksheet.cell(row_counter, 3).value = control.text
     if crm_addendum_list:
         for control in crm_addendum_list:
-            crm_worksheet.cell(row_counter, 1).value = ref_counter
-            crm_worksheet.cell(row_counter, 2).value = control.text
-            crm_worksheet.cell(row_counter, 3).value = control.number
-            row_counter += 1
-            ref_counter += 1
+            row_counter = crm_worksheet_dict[control.number]
+            #crm_worksheet.cell(row_counter, 1).value = ref_counter
+            crm_worksheet.cell(row_counter, 1).value = control.number
+            crm_worksheet.cell(row_counter, 2).value = 'Yes'
+            crm_worksheet.cell(row_counter, 3).value = control.text
 
 
 def convert_cis_control_number(control_number):
-    control_number = control_number.replace('-0', '-').replace('(0', '(')
+    control_number = control_number.replace('-0', '-').replace('(0', '(').split(' ', 1)[0]
     return control_number
 
 
